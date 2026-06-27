@@ -1,0 +1,34 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Status {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model Investigation {
+  id         String     @id @default(uuid())
+  target     String     
+  type       String
+  status     Status     @default(PENDING)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  artifacts  Artifact[]  
+}
+
+model Artifact {
+  id                String     @id @default(uuid())
+  source            String
+  data              Json
+  discoveredAt      DateTime   @default(now())
+
+  investigationId   String
+  investigation     Investigation  @relation(fields: [investigationId], references: [id])
+}
