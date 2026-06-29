@@ -11,5 +11,12 @@ services:
             - "5432:5432"
         volumes:
             - "pgdata:/var/lib/postgresql/data"
+    rabbitmq:
+        image: rabbitmq:management-alpine
+        container_name: rabbitmq-osint
+        restart: always
+        ports:
+            - "5672:5672"
+            - "15672:15672"
 volumes:
     pgdata:

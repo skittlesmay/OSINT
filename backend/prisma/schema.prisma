@@ -14,8 +14,8 @@ enum Status {
 
 model Investigation {
   id         String     @id @default(uuid())
-  target     String     
-  type       String
+  target     String     // johndoe@gmail.com 
+  type       String     // types: 'USERNAME', 'EMAIL', 'PHONE'
   status     Status     @default(PENDING)
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
