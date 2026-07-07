@@ -25,7 +25,7 @@ model Investigation {
 
 model Artifact {
   id                String     @id @default(uuid())
-  source            String
+  source            String // Источник
   data              Json
   discoveredAt      DateTime   @default(now())
 

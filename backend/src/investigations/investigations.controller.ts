@@ -9,7 +9,7 @@ export class InvestigationsController {
 
   @ApiOperation({ summary: 'Создание нового расследования' })
   @Post('start')
-  async startInvestigation(@Body() dto: CreateInvestigationDto) {
+  startInvestigation(@Body() dto: CreateInvestigationDto) {
     return this._investigationsService.start(dto);
   }
 

@@ -16,11 +16,11 @@ export class InvestigationsService {
     });
 
     this._rmqClient.emit('search.start', {
-      investigationid: investigation.id,
+      investigationId: investigation.id,
       target: investigation.target,
       type: investigation.type,
     });
-
+    console.log(investigation);
     return investigation;
   }
 
