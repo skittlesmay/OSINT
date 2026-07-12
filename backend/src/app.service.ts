@@ -2,10 +2,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from './prisma/prisma.service';
 import axios from 'axios';
 import { load } from 'cheerio';
+import { InvestigationsGateway } from './investigations/investigations.gateway';
 
 @Injectable()
 export class AppService {
-  constructor(private _prismaService: PrismaService) {}
+  constructor(
+    private _prismaService: PrismaService,
+    private _osintGateway: InvestigationsGateway,
+  ) {}
   private readonly _logger = new Logger(AppService.name);
 
   async scrapeUsername(investigationId: string, target: string) {
@@ -80,7 +84,7 @@ export class AppService {
             }
           }
 
-          await this._prismaService.artifact.create({
+          const artifact = await this._prismaService.artifact.create({
             data: {
               investigationId,
               source: site.source,
@@ -88,6 +92,9 @@ export class AppService {
             },
           });
           this._logger.debug('Профиль успешно найден!', artifactsData);
+          this._osintGateway.server
+            .to(investigationId)
+            .emit('artifact-found', artifact);
         } else {
           const emptyArtifactsData: Record<string, any> = {
             status: 'NOT_FOUND',
