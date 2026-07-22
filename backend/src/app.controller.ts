@@ -13,6 +13,6 @@ export class AppController {
     if (data.type !== 'USERNAME') {
       return;
     }
-    this.appService.scrapeUsername(data.investigationId, data.target);
+    void this.appService.scrapeUsername(data.investigationId, data.target);
   }
 }

@@ -25,6 +25,15 @@ services:
         ports:
             - "8191:8191"
         environment:
-            LOG_LEVEL: info 
+            LOG_LEVEL: info
+    neo4j:
+        image: neo4j:5.12-community
+        container_name: neo4j-osint
+        ports:
+            - "7474:7474"
+            - "7687:7687"
+        environment:
+            NEO4J_AUTH: ${NEO4J_USER}/${NEO4J_PASSWORD}
+
 volumes:
     pgdata:

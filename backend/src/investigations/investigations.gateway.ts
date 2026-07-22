@@ -16,7 +16,7 @@ export class InvestigationsGateway {
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { investigationId: string },
   ) {
-    client.join(data.investigationId);
+    void client.join(data.investigationId);
     console.log(
       `Client ${client.id} подключился к osint ${data.investigationId}`,
     );

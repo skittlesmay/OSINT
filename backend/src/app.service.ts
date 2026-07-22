@@ -3,16 +3,23 @@ import { PrismaService } from './prisma/prisma.service';
 import axios from 'axios';
 import { load } from 'cheerio';
 import { InvestigationsGateway } from './investigations/investigations.gateway';
+import { Neo4jService } from './neo4j/neo4j.service';
 
 @Injectable()
 export class AppService {
   constructor(
     private _prismaService: PrismaService,
     private _osintGateway: InvestigationsGateway,
+    private _neo4j: Neo4jService,
   ) {}
   private readonly _logger = new Logger(AppService.name);
 
   async scrapeUsername(investigationId: string, target: string) {
+    await this._neo4j.write(
+      'MERGE (i:Investigation {id: $id, target: $target, type: $type})',
+      { id: investigationId, target, type: 'USERNAME' },
+    );
+
     const targets = [
       {
         source: 'GITHUB',
@@ -35,6 +42,9 @@ export class AppService {
         checkSelector: '.actual_persona_name',
       },
     ];
+
+    const total = targets.length;
+    let checkedCount = 0;
 
     for (const site of targets) {
       try {
@@ -91,6 +101,14 @@ export class AppService {
               data: artifactsData,
             },
           });
+          await this._neo4j.write(
+            `
+              MATCH (i:Investigation {id: $investigationId})
+              MERGE (a:Account {source: $source, url: $url})
+              MERGE (i)-[:HAS_ACCOUNT]->(a)
+            `,
+            { investigationId, source: site.source, url: site.url },
+          );
           this._logger.debug('Профиль успешно найден!', artifactsData);
           this._osintGateway.server
             .to(investigationId)
@@ -112,7 +130,36 @@ export class AppService {
         }
       } catch (error) {
         this._logger.error(`Ошибка при запросе к ${site.source}`, error);
-        continue;
+
+        const investigationFailed =
+          await this._prismaService.investigation.update({
+            where: {
+              id: investigationId,
+            },
+            data: {
+              status: 'FAILED',
+            },
+          });
+
+        this._osintGateway.server
+          .to(investigationId)
+          .emit('investigation_failed', {
+            investigation: investigationFailed,
+            error: 'Error code 500',
+          });
+
+        return;
+      } finally {
+        checkedCount++;
+        const checkedPercentage = Math.round((checkedCount / total) * 100);
+
+        this._osintGateway.server
+          .to(investigationId)
+          .emit('investigation_progress', {
+            checked: checkedCount,
+            total: total,
+            percentage: checkedPercentage,
+          });
       }
     }
   }

@@ -4,6 +4,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { InvestigationsModule } from './investigations/investigations.module';
+import { Neo4jService } from './neo4j/neo4j.service';
+import { Neo4jModule } from './neo4j/neo4j.module';
 
 @Module({
   imports: [
@@ -13,8 +15,9 @@ import { InvestigationsModule } from './investigations/investigations.module';
     }),
     PrismaModule,
     InvestigationsModule,
+    Neo4jModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, Neo4jService],
 })
 export class AppModule {}

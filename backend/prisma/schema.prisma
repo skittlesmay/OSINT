@@ -10,6 +10,7 @@ enum Status {
   PENDING
   IN_PROGRESS
   COMPLETED
+  FAILED
 }
 
 model Investigation {
@@ -23,7 +24,7 @@ model Investigation {
   artifacts  Artifact[]  
 }
 
-model Artifact {
+model Artifact { 
   id                String     @id @default(uuid())
   source            String // Источник
   data              Json
