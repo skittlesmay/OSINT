@@ -83,14 +83,50 @@ export class AppService {
 
             if (company) {
               artifactsData.companyInfo = company;
+              await this._neo4j.write(
+                `
+                MERGE(a:Account {source: $source, url: $url})
+                MERGE(c:Company {companyName: $company})
+                MERGE(a)-[:WORKED_IN]->(c) 
+                `,
+                {
+                  source: site.source,
+                  url: site.url,
+                  company: company,
+                },
+              );
             }
 
             if (location) {
               artifactsData.locationInfo = location;
+              await this._neo4j.write(
+                `
+              MERGE(a:Account {source: $source, url: $url})
+              MERGE(l:Location {name: $locationName})
+              MERGE(a)-[:LOCATED_IN]->(l)
+              `,
+                {
+                  source: site.source,
+                  url: site.url,
+                  locationName: location,
+                },
+              );
             }
 
             if (bio) {
               artifactsData.bioInfo = bio;
+              await this._neo4j.write(
+                `
+                MERGE(a:Account {source: $source, url: $url})
+                MERGE(b:Bio {bioInformation: $bio})
+                MERGE(a)-[:ACCOUNT_BIO]->(b)
+                `,
+                {
+                  source: site.source,
+                  url: site.url,
+                  bio: bio,
+                },
+              );
             }
           }
 
