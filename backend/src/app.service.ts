@@ -4,6 +4,7 @@ import axios from 'axios';
 import { load } from 'cheerio';
 import { InvestigationsGateway } from './investigations/investigations.gateway';
 import { Neo4jService } from './neo4j/neo4j.service';
+import dedent from 'dedent';
 
 @Injectable()
 export class AppService {
@@ -200,7 +201,7 @@ export class AppService {
     }
   }
 
-  async getFullReport(investigationId: string) {
+  async getFullReport(investigationId: string, format?: string) {
     const investigation = await this._prismaService.investigation.findUnique({
       where: { id: investigationId },
       include: { artifacts: true },
@@ -209,6 +210,19 @@ export class AppService {
     if (!investigation) {
       throw new NotFoundException('Расследование не найдено!');
     }
+
+    const totalArtifacts = investigation?.artifacts.length;
+
+    const foundArtifacts = investigation.artifacts.filter(
+      (artifact) => (artifact.data as { status: string }).status === 'FOUND',
+    );
+
+    const foundCount = foundArtifacts.length;
+
+    const notFoundCount = totalArtifacts - foundCount;
+
+    const successRate =
+      totalArtifacts > 0 ? Math.round((foundCount / totalArtifacts) * 100) : 0;
 
     const neo4jResult = await this._neo4j.write(
       `
@@ -227,13 +241,43 @@ export class AppService {
       };
     });
 
+    if (format === 'md') {
+      const profilesList = foundArtifacts
+        .map(
+          (a) =>
+            `- **${a.source}:** *${(a.data as { profileUrl?: string })?.profileUrl || 'Ссылка отсутствует'}*`,
+        )
+        .join('\n');
+
+      const graphList = graphConnections
+        .map((g) => `- **${g.source}:** *${g.url}*`)
+        .join('\n');
+
+      return dedent`
+        ### 🕵️ Досье расследования: ${investigation.target}
+
+        - **ID:** ${investigation.id}
+        - **Статус:** ${investigation.status}
+        - **Успешность:** ${foundCount} из ${totalArtifacts} (${successRate}%)
+
+        #### 🎯 Найденные профили (${foundCount})
+        ${profilesList || '*Профили не найдены*'}
+
+        #### 🌐 Сеть связей (Neo4j)
+        ${graphList || '*Связи в графе отсутствуют*'}
+  `;
+    }
+
     return {
       summary: {
         id: investigation.id,
         target: investigation.target,
         status: investigation.status,
         createdAt: investigation.createdAt,
-        totalArtifacts: investigation.artifacts.length,
+        sucсessRate: `${successRate}%`,
+        totalProfilesArtifacts: totalArtifacts,
+        profilesFound: foundCount,
+        profilesNotFound: notFoundCount,
       },
 
       artifacts: investigation.artifacts,
