@@ -1,6 +1,7 @@
-import { Controller } from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
 import { AppService } from './app.service';
 import { EventPattern, Payload } from '@nestjs/microservices';
+import { ApiOperation } from '@nestjs/swagger';
 
 @Controller()
 export class AppController {
@@ -14,5 +15,14 @@ export class AppController {
       return;
     }
     void this.appService.scrapeUsername(data.investigationId, data.target);
+  }
+  @ApiOperation({
+    summary: 'Получение полного отчета по investigation',
+    description:
+      'Собирает данные из postgresql (артефакты) и Neo4j (графовые связи аккаунтов) по id investigation',
+  })
+  @Get('investigations/:id/report')
+  getReport(@Param('id') id: string) {
+    return this.appService.getFullReport(id);
   }
 }

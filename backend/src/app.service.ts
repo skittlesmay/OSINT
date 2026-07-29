@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from './prisma/prisma.service';
 import axios from 'axios';
 import { load } from 'cheerio';
@@ -198,5 +198,46 @@ export class AppService {
           });
       }
     }
+  }
+
+  async getFullReport(investigationId: string) {
+    const investigation = await this._prismaService.investigation.findUnique({
+      where: { id: investigationId },
+      include: { artifacts: true },
+    });
+
+    if (!investigation) {
+      throw new NotFoundException('Расследование не найдено!');
+    }
+
+    const neo4jResult = await this._neo4j.write(
+      `
+      MATCH(i:Investigation {id: $id})-[r:HAS_ACCOUNT]->(a:Account)
+      RETURN a.source AS source, a.url AS url
+      `,
+      {
+        id: investigationId,
+      },
+    );
+
+    const graphConnections = neo4jResult.records.map((record) => {
+      return {
+        source: record.get('source'),
+        url: record.get('url'),
+      };
+    });
+
+    return {
+      summary: {
+        id: investigation.id,
+        target: investigation.target,
+        status: investigation.status,
+        createdAt: investigation.createdAt,
+        totalArtifacts: investigation.artifacts.length,
+      },
+
+      artifacts: investigation.artifacts,
+      graphNetwork: graphConnections,
+    };
   }
 }
