@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateInvestigationDto } from './dto/create-investigation.dto';
@@ -28,6 +28,27 @@ export class InvestigationsService {
     return this._prismaService.investigation.findUnique({
       where: { id },
       include: { artifacts: true },
+    });
+  }
+
+  async toggleMonitoring(id: string) {
+    const current = await this._prismaService.investigation.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!current) {
+      throw new NotFoundException('Расследование не найденно!');
+    }
+
+    return this._prismaService.investigation.update({
+      where: {
+        id,
+      },
+      data: {
+        isMonitoring: !current.isMonitoring,
+      },
     });
   }
 }

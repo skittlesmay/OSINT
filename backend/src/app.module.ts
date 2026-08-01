@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { InvestigationsModule } from './investigations/investigations.module';
 import { Neo4jService } from './neo4j/neo4j.service';
 import { Neo4jModule } from './neo4j/neo4j.module';
+import { TasksModule } from './tasks/tasks.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { Neo4jModule } from './neo4j/neo4j.module';
     PrismaModule,
     InvestigationsModule,
     Neo4jModule,
+    TasksModule,
   ],
   controllers: [AppController],
   providers: [AppService, Neo4jService],

@@ -24,14 +24,12 @@ export class AppController {
       'Собирает данные из postgresql (артефакты) и Neo4j (графовые связи аккаунтов) по id investigation',
   })
   @Get('investigations/:id/report')
-  getReport(
+  async getReport(
     @Param('id') id: string,
     @Res({ passthrough: true }) res: Response,
     @Query('format') format?: string,
+    @Query('download') download?: string,
   ) {
-    if (format === 'md') {
-      res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
-    }
-    return this.appService.getFullReport(id, format);
+    return this.appService.getFullReport(id, format, download, res);
   }
 }

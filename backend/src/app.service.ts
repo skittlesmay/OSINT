@@ -1,10 +1,16 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from './prisma/prisma.service';
 import axios from 'axios';
 import { load } from 'cheerio';
 import { InvestigationsGateway } from './investigations/investigations.gateway';
 import { Neo4jService } from './neo4j/neo4j.service';
 import dedent from 'dedent';
+import { Response } from 'express';
 
 @Injectable()
 export class AppService {
@@ -201,7 +207,12 @@ export class AppService {
     }
   }
 
-  async getFullReport(investigationId: string, format?: string) {
+  async getFullReport(
+    investigationId: string,
+    format?: string,
+    download?: string,
+    res?: Response,
+  ) {
     const investigation = await this._prismaService.investigation.findUnique({
       where: { id: investigationId },
       include: { artifacts: true },
@@ -209,6 +220,23 @@ export class AppService {
 
     if (!investigation) {
       throw new NotFoundException('Расследование не найдено!');
+    }
+
+    const ext = format || 'json';
+
+    const allowedFormats = ['md', 'json'];
+
+    if (download === 'true' && res) {
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="investigation-${investigation.target}.${ext}"`,
+      );
+    }
+
+    if (format && !allowedFormats.includes(format)) {
+      throw new BadRequestException(
+        'Неподдерживаемый формат отчета. Допустимы: json, md,',
+      );
     }
 
     const totalArtifacts = investigation?.artifacts.length;

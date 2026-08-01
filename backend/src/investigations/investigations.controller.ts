@@ -1,4 +1,4 @@
-import { Body, Post, Get, Controller, Param } from '@nestjs/common';
+import { Body, Post, Get, Controller, Param, Patch } from '@nestjs/common';
 import { InvestigationsService } from './investigations.service';
 import { CreateInvestigationDto } from './dto/create-investigation.dto';
 import { ApiOperation } from '@nestjs/swagger';
@@ -17,5 +17,11 @@ export class InvestigationsController {
   @Get('status/:id')
   getStatusInvestigation(@Param('id') id: string) {
     return this._investigationsService.getStatus(id);
+  }
+
+  @ApiOperation({ summary: 'Включение и выключение мониторинга' })
+  @Patch(':id/toggle-monitoring')
+  toggleMonitoring(@Param('id') id: string) {
+    return this._investigationsService.toggleMonitoring(id);
   }
 }
