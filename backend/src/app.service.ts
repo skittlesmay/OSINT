@@ -172,7 +172,10 @@ export class AppService {
           this._logger.debug('Профиль не найден!', emptyArtifactsData);
         }
       } catch (error) {
-        this._logger.error(`Ошибка при запросе к ${site.source}`, error);
+        this._logger.error(
+          `Ошибка при запросе к ${site.source}`,
+          'big log bro...',
+        );
 
         const investigationFailed =
           await this._prismaService.investigation.update({
@@ -190,8 +193,6 @@ export class AppService {
             investigation: investigationFailed,
             error: 'Error code 500',
           });
-
-        return;
       } finally {
         checkedCount++;
         const checkedPercentage = Math.round((checkedCount / total) * 100);
