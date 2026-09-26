@@ -1,98 +1,175 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# ⚡ OSINT Backend Core: API, Event Pipeline & Graph Engine
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Серверный сервис платформы цифровой разведки (OSINT), реализующий асинхронную обработку очередей сбора данных, обход антифрод-систем, стриминг событий в реальном времени и корреляционный анализ сетевых структур на базе графовой СУБД Neo4j.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## Архитектура и стек технологий
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Архитектура построена на принципах Clean Architecture и модульности NestJS:
+- **NestJS 11**: Модульный фреймворк с инверсией управления (IoC) и внедрением зависимостей (DI).
+- **Neo4j Driver 6 & Cypher**: Высокопроизводительный доступ к графовой СУБД для построения сетей связей между узлами.
+- **Prisma 7 + PostgreSQL 16**: Реляционный слой с адаптером `@prisma/adapter-pg` для управления состоянием расследований, пользователями и сессиями.
+- **RabbitMQ (@nestjs/microservices)**: Брокер сообщений для изоляции задач сбора информации от HTTP-потока.
+- **Socket.io (@nestjs/websockets)**: Двусторонний транспорт для отправки промежуточных результатов в браузер.
+- **FlareSolverr + Cheerio + Axios**: Стек сбора данных с эмуляцией браузера для обхода Cloudflare WAF.
+- **Better Auth**: Модуль управления сессиями и аутентификацией пользователей.
+- **@nestjs/schedule**: Планировщик фоновых регламентных задач (Cron).
 
-## Project setup
+---
 
-```bash
-$ pnpm install
+## Графовая подсистема (Neo4j & Cypher)
+
+Ключевым преимуществом платформы является семантическая корреляция разрозненных цифровых следов в единый граф связей. Реляционные таблицы фиксируют сырые артефакты, в то время как Neo4j отвечает за выявление скрытых взаимосвязей, кластеризацию и сетевой анализ.
+
+### Топология графа
+
+```
+                      +-------------------+
+                      |   Investigation   |
+                      +-------------------+
+                                |
+                         [:HAS_ACCOUNT]
+                                |
+                                v
+                       +-----------------+
+                       |     Account     |
+                       +-----------------+
+                         /      |      \
+             [:WORKED_IN]  [:LOCATED_IN] [:ACCOUNT_BIO]
+             /                  |                  \
+            v                   v                   v
+     +-------------+    +---------------+    +-------------+
+     |   Company   |    |   Location    |    |     Bio     |
+     +-------------+    +---------------+    +-------------+
 ```
 
-## Compile and run the project
+### Модели узлов (Nodes)
+- `Investigation`: корневой узел сессии расследования (`id`, `target`, `type`).
+- `Account`: учетная запись на внешнем ресурсе (`source`, `url`).
+- `Company`: организация, извлеченная из метаданных профиля (`companyName`).
+- `Location`: геопозиция или заявленная локация пользователя (`name`).
+- `Bio`: биографическое описание профиля (`bioInformation`).
 
-```bash
-# development
-$ pnpm run start
+### Ребра и семантические связи (Relationships)
+- `(:Investigation)-[:HAS_ACCOUNT]->(:Account)`: связь расследования с обнаруженным аккаунтом.
+- `(:Account)-[:WORKED_IN]->(:Company)`: сопоставление аккаунта с компанией-работодателем.
+- `(:Account)-[:LOCATED_IN]->(:Location)`: географическая привязка профиля.
+- `(:Account)-[:ACCOUNT_BIO]->(:Bio)`: связь профиля с текстовой биографией.
 
-# watch mode
-$ pnpm run start:dev
+### Cypher-запросы ядра
 
-# production mode
-$ pnpm run start:prod
+1. **Инициализация расследования и мердж узла**:
+```cypher
+MERGE (i:Investigation {id: $id, target: $target, type: $type})
 ```
 
-## Run tests
-
-```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+2. **Создание аккаунта и привязка к расследованию**:
+```cypher
+MATCH (i:Investigation {id: $investigationId})
+MERGE (a:Account {source: $source, url: $url})
+MERGE (i)-[:HAS_ACCOUNT]->(a)
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+3. **Связывание аккаунта с компанией и локацией (идемпотентная вставка)**:
+```cypher
+MERGE (a:Account {source: $source, url: $url})
+MERGE (c:Company {companyName: $company})
+MERGE (a)-[:WORKED_IN]->(c)
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+4. **Выборка сетевого графа расследования**:
+```cypher
+MATCH (i:Investigation {id: $id})-[r:HAS_ACCOUNT]->(a:Account)
+RETURN a.source AS source, a.url AS url
+```
 
-## Resources
+Управление транзакциями инкапсулировано в `Neo4jService` с использованием сессий драйвера и метода `session.executeWrite()`.
 
-Check out a few resources that may come in handy when working with NestJS:
+---
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## Конфигурация окружения (.env)
 
-## Support
+Файл `.env` должен располагаться в корне монорепозитория (на один уровень выше папки `backend`):
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+| Переменная | Тип | Назначение |
+| :--- | :--- | :--- |
+| `POSTGRES_USER` | string | Имя пользователя базы данных PostgreSQL |
+| `POSTGRES_PASSWORD` | string | Пароль пользователя PostgreSQL |
+| `POSTGRES_DB` | string | Название базы данных PostgreSQL |
+| `NEO4J_URL` | string | Bolt-протокол подключения к Neo4j (`bolt://localhost:7687`) |
+| `NEO4J_USER` | string | Имя пользователя Neo4j (`neo4j`) |
+| `NEO4J_PASSWORD` | string | Пароль для доступа к Neo4j |
+| `DATABASE_URL` | string | Полная строка подключения Prisma к PostgreSQL |
 
-## Stay in touch
+Пример конфигурации находится в файле [`.env.example`](../.env.example).
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+---
 
-## License
+## Установка и запуск
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### 1. Установка зависимостей
+```bash
+pnpm install
+```
+
+### 2. Применение миграций Prisma
+```bash
+# Применение миграций схемы к локальной БД
+npx prisma migrate dev
+
+# Генерация TypeScript-клиента Prisma
+npx prisma generate
+```
+
+### 3. Запуск сервиса
+```bash
+# Режим разработки с hot-reload
+pnpm run start:dev
+
+# Сборка проекта
+pnpm run build
+
+# Продакшн запуск
+pnpm run start:prod
+```
+
+---
+
+## Спецификация REST API
+
+Интерактивная Swagger-документация доступна по адресу: `http://localhost:3000/api/docs`.
+
+| Метод | Путь | Описание |
+| :--- | :--- | :--- |
+| `POST` | `/investigations/start` | Инициализация нового расследования и отправка задачи в RabbitMQ |
+| `GET` | `/investigations/status/:id` | Получение статуса расследования и списка найденных артефактов |
+| `PATCH` | `/investigations/:id/toggle-monitoring` | Включение или отключение циклического фонового мониторинга |
+| `GET` | `/investigations/:id/report` | Выгрузка полного досье (агрегация из PostgreSQL и графа Neo4j) |
+
+### Параметры эндпоинта отчетов (`/investigations/:id/report`)
+- `format`: формат ответа (`json` по умолчанию, `md` для Markdown-представления).
+- `download`: флаг скачивания (`true` выставляет заголовок `Content-Disposition: attachment`).
+
+---
+
+## WebSocket Gateway (Socket.io)
+
+Шлюз реального времени (`InvestigationsGateway`) обеспечивает стриминг статуса без необходимости поллинга HTTP-эндпоинтов.
+
+### Входящие события от клиента
+- `join_investigation!`: подключение сокета к изолированной комнате расследования (`{ "investigationId": "uuid" }`).
+
+### Исходящие события сервиса
+- `investigation_progress`: передача текущего прогресса сбора (`checked`, `total`, `percentage`).
+- `artifact-found`: доставка найденного артефакта сразу после обнаружения.
+- `investigation_failed`: уведомление о критическом сбое пайплайна сбора данных.
+
+---
+
+## Фоновый мониторинг (TasksService)
+
+Сервис реализует регламентную проверку активных целей по расписанию:
+- **Триггер**: `@Cron('0 */2 * * * *')` (запуск каждые 2 минуты).
+- **Выборка**: все расследования с флагом `isMonitoring: true`.
+- **Защита от перегрузки**: лимит в 10 итераций мониторинга (`monitoringCount >= 10`), после чего флаг `isMonitoring` автоматически сбрасывается в `false`.

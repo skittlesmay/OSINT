@@ -1,75 +1,48 @@
-# React + TypeScript + Vite
+# 💻 OSINT Platform: Web Client (Prototype Stub)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Данная директория содержит базовый каркас клиентского SPA-приложения, инициализированный на базе React 19 и Vite. 
 
-Currently, two official plugins are available:
+> [!NOTE]
+> Проект имеет выраженный бэкенд-фокус (исследование NestJS, Neo4j, RabbitMQ и Polyglot Persistence). Клиентская часть на текущем этапе представляет собой чистую стартовую заготовку для последующей разработки пользовательского интерфейса.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## Стек технологий
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| Слой | Технология | Назначение |
+| :--- | :--- | :--- |
+| UI Framework | React 19 | Построение компонентного интерфейса |
+| Language | TypeScript 6 | Статическая типизация |
+| Bundler & Dev Server | Vite 8 | Сборщик и HMR-сервер |
+| Code Quality | ESLint 10 + typescript-eslint | Линтинг клиентского кода |
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Установка и запуск
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+### 1. Установка зависимостей
+```bash
+pnpm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+### 2. Запуск локального сервера разработки
+```bash
+pnpm run dev
 ```
+Локальный сервер стартует по адресу `http://localhost:5173`.
+
+### 3. Сборка статических файлов
+```bash
+pnpm run build
+```
+
+---
+
+## План интеграции с бэкенд-ядром
+
+Готовое ядро сервиса ([`backend`](../backend/README.md)) предоставляет контракты, под которые проектируется клиентский интерфейс:
+
+- **Запуск расследований**: Форма отправки `POST /investigations/start` с целевым именем пользователя.
+- **Индикатор прогресса**: Подключение к WebSocket Gateway (`join_investigation!`) и реактивное обновление прогресс-бара по событию `investigation_progress`.
+- **Лента артефактов**: Добавление карточек профилей на лету по событию `artifact-found`.
+- **Визуализация графа**: Рендеринг сетевых связей (аккаунты, компании, локации из Neo4j через эндпоинт `/investigations/:id/report`) с использованием специализированных библиотек визуализации графов (vis-network / Cytoscape.js).
